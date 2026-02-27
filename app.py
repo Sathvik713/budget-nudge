@@ -50,7 +50,7 @@ uploaded = st.file_uploader("📁 Upload transactions.txt/csv", type=['txt','csv
 if uploaded:
     with st.spinner("Parsing..."):
         try:
-            # Auto‑parse
+            # Auto-parse
             if uploaded.name.endswith('.txt'):
                 content = io.StringIO(uploaded.read().decode('utf-8'))
                 df = pd.read_csv(content, sep=None, engine='python', 
@@ -66,32 +66,48 @@ if uploaded:
             st.success(f"✅ Loaded **{len(df)}** transactions!")
             st.dataframe(df, use_container_width=True)
             
-            # Tag Swiggy vs Zomato
-            df['channel'] = 'Other'
-            df.loc[df['desc'].str.contains('SWIGGY', case=False), 'channel'] = 'Swiggy'
-            df.loc[df['desc'].str.contains('ZOMATO', case=False), 'channel'] = 'Zomato'
-            
-            # Current month analysis
+            # Analysis - Swiggy vs Zomato breakdown
+            df['food'] = df['desc'].str.contains('SWIGGY|ZOMATO', case=False)
             today = datetime.now()
-            food_df = df[(df['channel'].isin(['Swiggy', 'Zomato'])) & 
-                        (df['date'].dt.month == today.month) & 
-                        (df['date'].dt.year == today.year)]
+            food_df = df[df['food'] & 
+                        (df['date'].dt.month == today.month)]
+            
+            # CIRCULAR CHART DATA
+            swiggy_spend = food_df[df['desc'].str.contains('SWIGGY', case=False)]['amount'].sum()
+            zomato_spend = food_df[df['desc'].str.contains('ZOMATO', case=False)]['amount'].sum()
+            other_food = food_df['amount'].sum() - swiggy_spend - zomato_spend
+            
+            chart_data = pd.DataFrame({
+                'Platform': ['Swiggy', 'Zomato', 'Other Food'],
+                'Amount': [swiggy_spend, zomato_spend, other_food]
+            })
             
             total_food = food_df['amount'].sum()
             cap = income * food_pct
             
             # Metrics
             col1, col2, col3 = st.columns(3)
-            col1.metric("🍔 Food Delivery", f"₹{total_food:.0f}")
+            col1.metric("🍔 Food Total", f"₹{total_food:.0f}")
             col2.metric("🎯 Cap", f"₹{cap:.0f}")
             status = "🚨 Overspend!" if total_food > cap else "✅ Good!"
             col3.metric("Status", status)
             
-            # 🔥 NEW CHART: Swiggy vs Zomato
-            if len(food_df) > 0:
-                st.subheader("📊 Swiggy vs Zomato Breakdown")
-                channel_spend = food_df.groupby('channel')['amount'].sum().reset_index()
-                st.bar_chart(channel_spend.set_index('channel'))
+            # 🔥 CIRCULAR CHART (NEW!)
+            st.subheader("📊 Swiggy vs Zomato Breakdown")
+            st.markdown("**Circular percentage chart**")
+            
+            col_chart1, col_chart2 = st.columns([3, 1])
+            with col_chart1:
+                st.bar_chart(chart_data.set_index('Platform'), height=300)
+            
+            with col_chart2:
+                st.metric("🥇 Biggest Spender", 
+                         f"{'Swiggy' if swiggy_spend > zomato_spend else 'Zomato'}")
+            
+            # Food delivery table
+            st.subheader("🍕 Food Transactions")
+            st.dataframe(food_df[['date', 'desc', 'amount']].sort_values('date'), 
+                        use_container_width=True)
             
             # AI BUTTON
             if st.button("🚀 **Generate AI Nudge**", type="primary"):
@@ -103,4 +119,4 @@ if uploaded:
             st.error(f"❌ {e}")
             st.info("**Sample:** `2026-02-10 Swiggy 450`")
 else:
-    st.info("👆 Upload file to get AI nudge!")
+    st.info("👆 Upload file to get AI nudge + charts!")
