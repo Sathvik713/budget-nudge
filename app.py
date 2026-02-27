@@ -94,7 +94,7 @@ if uploaded:
             
             # 🔥 CIRCULAR CHART (NEW!)
             st.subheader("📊 Swiggy vs Zomato Breakdown")
-            st.markdown("**Circular percentage chart**")
+            st.markdown("**Percentage Chart**")
             
             col_chart1, col_chart2 = st.columns([3, 1])
             with col_chart1:
